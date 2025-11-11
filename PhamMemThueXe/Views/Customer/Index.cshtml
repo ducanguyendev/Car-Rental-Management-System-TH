@@ -1,0 +1,290 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Trang chủ";
+}
+
+<style>
+    .xe-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+        height: 100%;
+    }
+    .xe-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    .xe-image {
+        height: 250px;
+        object-fit: cover;
+        width: 100%;
+    }
+    .xe-image-placeholder {
+        height: 250px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 3rem;
+    }
+    .price-badge {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+</style>
+
+<div class="mb-4">
+    <h2><i class="fas fa-home"></i> Trang chủ</h2>
+    <p class="text-muted">Chọn xe bạn muốn thuê</p>
+</div>
+
+<div id="alertContainer"></div>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Lọc theo loại xe:</label>
+                <select class="form-select" id="filterLoaiXe">
+                    <option value="">Tất cả loại xe</option>
+                </select>
+            </div>
+            <div class="col-md-8 text-end">
+                <a asp-action="PhieuDatXes" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-calendar-check"></i> Phiếu đặt xe của tôi
+                </a>
+                <a asp-action="HopDongs" class="btn btn-outline-success me-2">
+                    <i class="fas fa-file-contract"></i> Hợp đồng của tôi
+                </a>
+                <a asp-action="HoaDons" class="btn btn-outline-info">
+                    <i class="fas fa-receipt"></i> Hóa đơn của tôi
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Danh sách xe -->
+<div id="xesContainer" class="row">
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+        let allXes = [];
+        let loaiXes = [];
+        let giaHienTai = {}; // Cache giá theo loại xe
+        
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                const alert = document.querySelector('#alertContainer .alert');
+                if (alert) alert.remove();
+            }, 5000);
+        }
+        
+        async function loadLoaiXes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/LoaiXeApi`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) throw new Error('Lỗi tải danh sách loại xe');
+                
+                const result = await response.json();
+                if (result.success) {
+                    loaiXes = result.data;
+                    const options = loaiXes.map(lx => 
+                        `<option value="${lx.maLoaiXe}">${lx.tenLoaiXe}</option>`
+                    ).join('');
+                    
+                    document.getElementById('filterLoaiXe').innerHTML = 
+                        '<option value="">Tất cả loại xe</option>' + options;
+                }
+            } catch (error) {
+                console.error('Error loading loai xe:', error);
+            }
+        }
+        
+        async function loadGia(maLoaiXe) {
+            if (!maLoaiXe) return null;
+            
+            if (giaHienTai[maLoaiXe]) {
+                return giaHienTai[maLoaiXe];
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/BangGiaApi/price-for-type/${maLoaiXe}`, {
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    if (result.success && result.data && result.data.donGiaTheoNgay) {
+                        giaHienTai[maLoaiXe] = result.data.donGiaTheoNgay;
+                        return giaHienTai[maLoaiXe];
+                    } else {
+                        console.warn('Không có giá cho loại xe:', maLoaiXe, result);
+                    }
+                } else {
+                    console.error('Lỗi tải giá, status:', res.status);
+                    const errorText = await res.text();
+                    console.error('Error response:', errorText);
+                }
+            } catch (e) {
+                console.error('Lỗi tải giá:', e);
+            }
+            return null;
+        }
+        
+        async function loadXes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/XeApi/available`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showAlert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'danger');
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    allXes = result.data;
+                    
+                    // Load giá cho tất cả loại xe
+                    const uniqueLoaiXeIds = [...new Set(allXes.map(x => x.loaiXe?.maLoaiXe).filter(Boolean))];
+                    
+                    // Hiển thị danh sách xe trước (với "Đang tải...")
+                    filterAndDisplayXes();
+                    
+                    // Load giá và cập nhật lại
+                    await Promise.all(uniqueLoaiXeIds.map(id => loadGia(id)));
+                    
+                    // Cập nhật lại sau khi load giá xong
+                    filterAndDisplayXes();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                console.error('Error loading xes:', error);
+                showAlert(`Lỗi kết nối đến server: ${error.message}`, 'danger');
+            }
+        }
+        
+        function filterAndDisplayXes() {
+            const filterLoaiXe = document.getElementById('filterLoaiXe').value;
+            
+            let filteredXes = allXes;
+            
+            if (filterLoaiXe) {
+                filteredXes = filteredXes.filter(x => x.loaiXe && x.loaiXe.maLoaiXe == filterLoaiXe);
+            }
+            
+            const container = document.getElementById('xesContainer');
+            
+            if (filteredXes.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Hiện tại không có xe nào sẵn sàng để thuê</p>
+                    </div>
+                `;
+            } else {
+                // Hiển thị từng xe và load giá bất đồng bộ
+                container.innerHTML = filteredXes.map(xe => {
+                    const maLoaiXe = xe.loaiXe?.maLoaiXe;
+                    const gia = giaHienTai[maLoaiXe];
+                    const giaFormatted = gia > 0 ? 
+                        new Intl.NumberFormat('vi-VN').format(gia) + ' VNĐ/ngày' : 
+                        'Đang tải...';
+                    
+                    return `
+                        <div class="col-md-4 col-lg-3 mb-4">
+                            <div class="card xe-card shadow-sm" onclick="bookCar(${xe.maXe})">
+                                ${xe.imageURL ? 
+                                    `<img src="${xe.imageURL}" alt="${xe.tenXe || ''}" class="card-img-top xe-image" 
+                                          onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'xe-image-placeholder\\'><i class=\\'fas fa-car\\'></i></div>'; this.remove();" />` :
+                                    `<div class="xe-image-placeholder">
+                                        <i class="fas fa-car"></i>
+                                    </div>`
+                                }
+                                <div class="card-body">
+                                    <h5 class="card-title">${xe.tenXe || 'N/A'}</h5>
+                                    <p class="card-text">
+                                        <span class="badge bg-primary mb-2">${xe.bienSoXe || 'N/A'}</span><br>
+                                        ${xe.loaiXe ? 
+                                            `<span class="badge bg-info">${xe.loaiXe.tenLoaiXe}</span>` :
+                                            '<span class="badge bg-secondary">Chưa phân loại</span>'
+                                        }
+                                    </p>
+                                    <div class="mt-3 text-center">
+                                        <div class="price-badge d-inline-block" id="price-${xe.maXe}">
+                                            <i class="fas fa-tag"></i> ${giaFormatted}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-success text-white text-center">
+                                    <i class="fas fa-calendar-check"></i> Đặt xe ngay
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Update giá cho từng xe sau khi render
+                filteredXes.forEach(xe => {
+                    const maLoaiXe = xe.loaiXe?.maLoaiXe;
+                    if (maLoaiXe && giaHienTai[maLoaiXe]) {
+                        const priceElement = document.getElementById(`price-${xe.maXe}`);
+                        if (priceElement) {
+                            const giaFormatted = new Intl.NumberFormat('vi-VN').format(giaHienTai[maLoaiXe]) + ' VNĐ/ngày';
+                            priceElement.innerHTML = `<i class="fas fa-tag"></i> ${giaFormatted}`;
+                        }
+                    } else if (maLoaiXe) {
+                        // Nếu chưa có giá, thử load lại
+                        loadGia(maLoaiXe).then(() => {
+                            const priceElement = document.getElementById(`price-${xe.maXe}`);
+                            if (priceElement && giaHienTai[maLoaiXe]) {
+                                const giaFormatted = new Intl.NumberFormat('vi-VN').format(giaHienTai[maLoaiXe]) + ' VNĐ/ngày';
+                                priceElement.innerHTML = `<i class="fas fa-tag"></i> ${giaFormatted}`;
+                            } else if (priceElement) {
+                                priceElement.innerHTML = '<i class="fas fa-tag"></i> Liên hệ';
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        
+        function bookCar(maXe) {
+            window.location.href = `/Customer/BookCar?maXe=${maXe}`;
+        }
+        
+        document.getElementById('filterLoaiXe').addEventListener('change', filterAndDisplayXes);
+        
+        // Load data khi trang được tải
+        window.onload = async function() {
+            await loadLoaiXes();
+            await loadXes();
+        };
+    </script>
+}

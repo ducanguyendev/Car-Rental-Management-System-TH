@@ -1,0 +1,116 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Thêm khách hàng";
+}
+
+<div id="alertContainer"></div>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h3>Thêm khách hàng</h3>
+            </div>
+            <div class="card-body">
+                <form id="khachHangForm">
+                    <div class="mb-3">
+                        <label class="form-label">Họ tên *</label>
+                        <input type="text" class="form-control" id="hoTen" required />
+                        <span class="text-danger" id="hoTenError"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CMND *</label>
+                        <input type="text" class="form-control" id="soCMND" required />
+                        <span class="text-danger" id="soCMNDError"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số hộ khẩu</label>
+                        <input type="text" class="form-control" id="soHoKhau" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="text" class="form-control" id="soDienThoai" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa chỉ cơ quan</label>
+                        <textarea class="form-control" id="diaChiCoQuan" rows="3"></textarea>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                        <a asp-action="KhachHangs" class="btn btn-secondary">Hủy</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        function clearErrors() {
+            document.getElementById('hoTenError').textContent = '';
+            document.getElementById('soCMNDError').textContent = '';
+        }
+
+        document.getElementById('khachHangForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            clearErrors();
+
+            const requestData = {
+                maKH: 0, // Will be set by server
+                hoTen: document.getElementById('hoTen').value.trim(),
+                soCMND: document.getElementById('soCMND').value.trim(),
+                soHoKhau: document.getElementById('soHoKhau').value.trim() || null,
+                soDienThoai: document.getElementById('soDienThoai').value.trim() || null,
+                diaChiCoQuan: document.getElementById('diaChiCoQuan').value.trim() || null
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/KhachHangApi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Thêm khách hàng thành công!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '@Url.Action("KhachHangs", "Accountant")';
+                    }, 1500);
+                } else {
+                    // Handle validation errors
+                    if (result.errors) {
+                        if (result.errors.HoTen) {
+                            document.getElementById('hoTenError').textContent = result.errors.HoTen[0];
+                        }
+                        if (result.errors.SoCMND) {
+                            document.getElementById('soCMNDError').textContent = result.errors.SoCMND[0];
+                        }
+                    }
+                    showAlert(result.message || 'Có lỗi xảy ra khi thêm khách hàng', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+    </script>
+}

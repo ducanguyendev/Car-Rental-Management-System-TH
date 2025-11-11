@@ -1,0 +1,390 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Tạo hợp đồng";
+}
+
+<div id="alertContainer"></div>
+
+<div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <h3><i class="fas fa-file-contract"></i> Tạo hợp đồng thuê xe</h3>
+    </div>
+    <div class="card-body">
+        <form id="hopDongForm">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Thông tin hợp đồng</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Khách hàng *</label>
+                        <select class="form-select" id="maKH" required>
+                            <option value="">-- Đang tải... --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phiếu đặt xe (nếu có)</label>
+                        <select class="form-select" id="maDatXe">
+                            <option value="">-- Đang tải... --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày nhận xe *</label>
+                        <input type="datetime-local" class="form-control" id="ngayNhanXe" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa điểm nhận *</label>
+                        <input type="text" class="form-control" id="diaDiemNhan" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày trả xe *</label>
+                        <input type="datetime-local" class="form-control" id="ngayTraXe" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa điểm trả *</label>
+                        <input type="text" class="form-control" id="diaDiemTra" required />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Chọn xe</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Xe sẵn sàng</label>
+                        <select id="xeSelect" class="form-select">
+                            <option value="">-- Đang tải... --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addXe()">
+                            <i class="fas fa-plus"></i> Thêm xe
+                        </button>
+                    </div>
+                    <div id="xeList" class="mb-3"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Số ngày thuê</label>
+                        <input type="number" id="soNgay" class="form-control" value="1" min="1" onchange="calculateTotal()" />
+                    </div>
+                    <div class="alert alert-info">
+                        <strong>Tổng tiền:</strong> <span id="tongTien">0</span> VNĐ<br>
+                        <strong>Đặt cọc (50%):</strong> <span id="tienDatCoc">0</span> VNĐ
+                    </div>
+                </div>
+            </div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-save"></i> Tạo hợp đồng
+                </button>
+                <a asp-action="HopDongs" class="btn btn-secondary">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+        let selectedXes = [];
+        let currentUser = null;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        async function getCurrentUser() {
+            try {
+                const res = await fetch(`${API_BASE}/api/AuthApi/me`, { credentials: 'include' });
+                if (!res.ok) return null;
+                const r = await res.json();
+                return r.data || null;
+            } catch (error) {
+                console.error('Error getting current user:', error);
+                return null;
+            }
+        }
+
+        async function loadKhachHangs() {
+            try {
+                const res = await fetch(`${API_BASE}/api/KhachHangApi`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải danh sách khách hàng');
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('maKH');
+                    select.innerHTML = '<option value="">-- Chọn khách hàng --</option>';
+                    result.data.forEach(kh => {
+                        const option = document.createElement('option');
+                        option.value = kh.maKH;
+                        option.textContent = `${kh.hoTen} - ${kh.soDienThoai || ''}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showAlert('Lỗi tải danh sách khách hàng', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function loadPhieuDatXes() {
+            try {
+                const res = await fetch(`${API_BASE}/api/PhieuDatXeApi/by-status/Đã xác nhận`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải phiếu đặt xe');
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('maDatXe');
+                    select.innerHTML = '<option value="">-- Không có phiếu đặt --</option>';
+                    result.data.forEach(pdx => {
+                        const option = document.createElement('option');
+                        option.value = pdx.maDatXe;
+                        option.textContent = `#${pdx.maDatXe} - ${pdx.khachHang?.hoTen || ''} - ${pdx.loaiXe?.tenLoaiXe || ''}`;
+                        option.dataset.maloaixe = pdx.loaiXe?.maLoaiXe || '';
+                        option.dataset.makh = pdx.maKH || '';
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showAlert('Lỗi tải phiếu đặt xe', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function loadXes() {
+            try {
+                const res = await fetch(`${API_BASE}/api/XeApi/available`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải danh sách xe');
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('xeSelect');
+                    select.innerHTML = '<option value="">-- Chọn xe --</option>';
+                    
+                    // Load giá cho từng loại xe
+                    for (const xe of result.data) {
+                        if (!xe.loaiXe?.maLoaiXe) continue;
+                        
+                        try {
+                            const priceRes = await fetch(`${API_BASE}/api/BangGiaApi/price-for-type/${xe.loaiXe.maLoaiXe}`, { credentials: 'include' });
+                            let gia = 0;
+                            if (priceRes.ok) {
+                                const priceResult = await priceRes.json();
+                                if (priceResult.success && priceResult.data) {
+                                    gia = priceResult.data.donGiaTheoNgay || 0;
+                                }
+                            }
+                            
+                            const option = document.createElement('option');
+                            option.value = xe.maXe;
+                            option.textContent = `${xe.bienSoXe} - ${xe.tenXe} (${xe.loaiXe.tenLoaiXe}) - ${gia.toLocaleString('vi-VN')} VNĐ/ngày`;
+                            option.dataset.ten = xe.tenXe;
+                            option.dataset.bien = xe.bienSoXe;
+                            option.dataset.loai = xe.loaiXe.tenLoaiXe;
+                            option.dataset.maloaixe = xe.loaiXe.maLoaiXe;
+                            option.dataset.gia = gia;
+                            select.appendChild(option);
+                        } catch (e) {
+                            console.error('Error loading price for xe:', e);
+                        }
+                    }
+                }
+            } catch (error) {
+                showAlert('Lỗi tải danh sách xe', 'danger');
+                console.error(error);
+            }
+        }
+    
+        function addXe() {
+            const select = document.getElementById('xeSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            if (!selectedOption.value) return;
+            
+            const xe = {
+                MaXe: parseInt(selectedOption.value),
+                TenXe: selectedOption.dataset.ten,
+                BienSoXe: selectedOption.dataset.bien,
+                LoaiXe: selectedOption.dataset.loai,
+                DonGia: parseFloat(selectedOption.dataset.gia)
+            };
+            
+            if (selectedXes.find(x => x.MaXe === xe.MaXe)) {
+                alert('Xe này đã được chọn');
+                return;
+            }
+            
+            selectedXes.push(xe);
+            updateXeList();
+            calculateTotal();
+        }
+        
+        function removeXe(index) {
+            selectedXes.splice(index, 1);
+            updateXeList();
+            calculateTotal();
+        }
+        
+        function updateXeList() {
+            const list = document.getElementById('xeList');
+            list.innerHTML = '';
+            selectedXes.forEach((xe, index) => {
+                const div = document.createElement('div');
+                div.className = 'card mb-2';
+                div.innerHTML = `
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${xe.BienSoXe}</strong> - ${xe.TenXe} (${xe.LoaiXe})<br>
+                                <small>${xe.DonGia.toLocaleString('vi-VN')} VNĐ/ngày</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeXe(${index})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        function calculateTotal() {
+            const soNgay = parseInt(document.getElementById('soNgay').value) || 1;
+            let total = 0;
+            selectedXes.forEach(xe => {
+                total += xe.DonGia * soNgay;
+            });
+            const datCoc = total * 0.5;
+            document.getElementById('tongTien').textContent = total.toLocaleString('vi-VN');
+            document.getElementById('tienDatCoc').textContent = datCoc.toLocaleString('vi-VN');
+        }
+        
+        function calculateSoNgayThue() {
+            const ngayNhan = document.getElementById('ngayNhanXe').value;
+            const ngayTra = document.getElementById('ngayTraXe').value;
+            
+            if (ngayNhan && ngayTra) {
+                const dateNhan = new Date(ngayNhan);
+                const dateTra = new Date(ngayTra);
+                
+                if (dateTra <= dateNhan) {
+                    alert('Ngày trả xe phải sau ngày nhận xe!');
+                    document.getElementById('soNgay').value = 1;
+                    calculateTotal();
+                    return;
+                }
+                
+                const diffTime = dateTra - dateNhan;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const soNgay = Math.max(1, diffDays);
+                
+                document.getElementById('soNgay').value = soNgay;
+                calculateTotal();
+            }
+        }
+        
+        document.getElementById('ngayNhanXe').addEventListener('change', calculateSoNgayThue);
+        document.getElementById('ngayTraXe').addEventListener('change', calculateSoNgayThue);
+        
+        document.getElementById('maDatXe').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (!selectedOption.value) return;
+            
+            const maLoaiXe = parseInt(selectedOption.dataset.maloaixe);
+            const maKH = parseInt(selectedOption.dataset.makh);
+            
+            const maKHSelect = document.getElementById('maKH');
+            if (maKHSelect && maKHSelect.value === '') {
+                maKHSelect.value = maKH;
+            }
+            
+            const xeSelect = document.getElementById('xeSelect');
+            let foundXe = false;
+            
+            for (let i = 0; i < xeSelect.options.length; i++) {
+                const option = xeSelect.options[i];
+                if (option.value && parseInt(option.dataset.maloaixe) === maLoaiXe) {
+                    xeSelect.value = option.value;
+                    foundXe = true;
+                    if (selectedXes.length === 0 || !selectedXes.find(x => x.MaXe === parseInt(option.value))) {
+                        addXe();
+                    }
+                    break;
+                }
+            }
+            
+            if (!foundXe) {
+                alert('Không có xe sẵn sàng thuộc loại xe đã đặt trong phiếu đặt xe này. Vui lòng chọn xe khác.');
+            }
+        });
+        
+        document.getElementById('hopDongForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (selectedXes.length === 0) {
+                showAlert('Vui lòng chọn ít nhất một xe', 'danger');
+                return;
+            }
+            
+            if (!currentUser || !currentUser.id) {
+                showAlert('Không xác định được thông tin nhân viên', 'danger');
+                return;
+            }
+            
+            const maDatXe = document.getElementById('maDatXe').value;
+            const requestData = {
+                maKH: parseInt(document.getElementById('maKH').value),
+                maNhanVien: currentUser.id,
+                maDatXe: maDatXe ? parseInt(maDatXe) : null,
+                ngayNhanXe: document.getElementById('ngayNhanXe').value,
+                diaDiemNhan: document.getElementById('diaDiemNhan').value,
+                ngayTraXe: document.getElementById('ngayTraXe').value,
+                diaDiemTra: document.getElementById('diaDiemTra').value,
+                tongTien: parseFloat(document.getElementById('tongTien').textContent.replace(/,/g, '')),
+                tienDatCoc: parseFloat(document.getElementById('tienDatCoc').textContent.replace(/,/g, '')),
+                chiTietHopDongs: selectedXes.map(xe => ({
+                    maXe: xe.MaXe,
+                    donGiaTaiThoiDiemThue: xe.DonGia,
+                    ghiChu: ''
+                }))
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/HopDongApi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(requestData)
+                });
+                
+                const result = await res.json();
+                
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Tạo hợp đồng thành công!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '@Url.Action("HopDongs", "Accountant")';
+                    }, 1500);
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi tạo hợp đồng', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+        
+        // Load data when page loads
+        window.addEventListener('DOMContentLoaded', async function() {
+            currentUser = await getCurrentUser();
+            if (!currentUser) {
+                showAlert('Không xác định được thông tin người dùng. Vui lòng đăng nhập lại.', 'danger');
+                return;
+            }
+            
+            await Promise.all([
+                loadKhachHangs(),
+                loadPhieuDatXes(),
+                loadXes()
+            ]);
+        });
+    </script>
+}

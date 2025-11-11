@@ -1,0 +1,96 @@
+@{ Layout = "_Layout"; ViewData["Title"] = "Đặt xe"; }
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h3>Đặt xe</h3>
+            </div>
+            <div class="card-body">
+                <form id="phieuDatXeForm" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Loại xe</label>
+                        <select name="MaLoaiXe" id="maLoaiXe" class="form-select" required>
+                            <option value="">-- Chọn loại xe --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày dự kiến nhận</label>
+                        <input name="NgayDuKienNhan" id="ngayDuKienNhan" type="date" class="form-control" required />
+                    </div>
+                    <div id="alertContainer"></div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">Đặt xe</button>
+                        <a asp-action="PhieuDatXes" class="btn btn-secondary">Hủy</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+        function showAlert(msg, type = 'danger') {
+            document.getElementById('alertContainer').innerHTML = `<div class="alert alert-${type}" role="alert">${msg}</div>`;
+        }
+        async function getCurrentUser() {
+            const res = await fetch(`${API_BASE}/api/AuthApi/me`, { credentials: 'include' });
+            if (!res.ok) return null;
+            const r = await res.json();
+            return r.data || null;
+        }
+        async function loadLoaiXeOptions() {
+            const select = document.getElementById('maLoaiXe');
+            try {
+                const res = await fetch(`${API_BASE}/api/LoaiXeApi`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải danh sách loại xe');
+                const result = await res.json();
+                if (result.success) {
+                    result.data.forEach(lx => {
+                        const opt = document.createElement('option');
+                        opt.value = lx.maLoaiXe;
+                        opt.text = lx.tenLoaiXe;
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                showAlert('Không thể tải danh sách loại xe!');
+            }
+        }
+        document.getElementById('phieuDatXeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showAlert('','success');
+            const user = await getCurrentUser();
+            if (!user || !user.maKH) {
+                showAlert('Không xác định được thông tin khách hàng hoặc chưa đăng nhập!');
+                return;
+            }
+            const maLoaiXe = Number(document.getElementById('maLoaiXe').value);
+            const ngayDuKienNhan = document.getElementById('ngayDuKienNhan').value;
+            if (!maLoaiXe || !ngayDuKienNhan) {
+                showAlert('Vui lòng điền đầy đủ thông tin!');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/PhieuDatXeApi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ maKH: user.maKH, maLoaiXe, ngayDuKienNhan })
+                });
+                const result = await res.json();
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Đặt xe thành công!', 'success');
+                    setTimeout(() => { window.location.href = '/Customer/PhieuDatXes'; }, 1200);
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi đặt xe!');
+                    console.error('Lỗi đặt xe:', result);
+                }
+            } catch (error) {
+                console.error('Lỗi kết nối:', error);
+                showAlert('Không thể gửi yêu cầu đặt xe! Vui lòng thử lại sau.');
+            }
+        });
+        loadLoaiXeOptions();
+    </script>
+}

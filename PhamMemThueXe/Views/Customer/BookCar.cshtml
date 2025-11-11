@@ -1,0 +1,211 @@
+@{ Layout = "_Layout"; ViewData["Title"] = "Đặt xe"; }
+<div class="container my-4">
+    <div class="row">
+        <!-- Cột trái: Thông tin xe -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-car"></i> Thông tin xe</h4>
+                </div>
+                <div class="card-body">
+                    <div id="xeInfo" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cột phải: Form đặt xe -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-calendar-check"></i> Đặt xe</h4>
+                </div>
+                <div class="card-body">
+                    <form id="phieuDatXeForm" autocomplete="off">
+                        <input type="hidden" id="selectedMaLoaiXe" />
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ngày dự kiến nhận <span class="text-danger">*</span></label>
+                            <input name="NgayDuKienNhan" id="ngayDuKienNhan" type="date" class="form-control" required 
+                                   min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                            <small class="form-text text-muted">Vui lòng chọn ngày trong tương lai</small>
+                        </div>
+                        <div id="alertContainer"></div>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check"></i> Xác nhận đặt xe
+                            </button>
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Quay lại
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+        
+        function showAlert(msg, type = 'danger') {
+            document.getElementById('alertContainer').innerHTML = 
+                `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${msg}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+        }
+        
+        async function getCurrentUser() {
+            const res = await fetch(`${API_BASE}/api/AuthApi/me`, { credentials: 'include' });
+            if (!res.ok) return null;
+            const r = await res.json();
+            return r.data || null;
+        }
+        
+        async function loadXeInfo(maXe) {
+            try {
+                const res = await fetch(`${API_BASE}/api/XeApi/${maXe}`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Không tìm thấy xe');
+                const result = await res.json();
+                
+                if (result.success) {
+                    const xe = result.data;
+                    const infoDiv = document.getElementById('xeInfo');
+                    
+                    // Lấy giá hiện tại của loại xe
+                    let giaHienTai = 'Đang tải...';
+                    if (xe.maLoaiXe) {
+                        try {
+                            const priceRes = await fetch(`${API_BASE}/api/BangGiaApi/price-for-type/${xe.maLoaiXe}`, { credentials: 'include' });
+                            if (priceRes.ok) {
+                                const priceResult = await priceRes.json();
+                                if (priceResult.success && priceResult.data && priceResult.data.donGiaTheoNgay) {
+                                    giaHienTai = new Intl.NumberFormat('vi-VN').format(priceResult.data.donGiaTheoNgay) + ' VNĐ/ngày';
+                                } else {
+                                    console.warn('Không có giá cho loại xe này:', priceResult);
+                                    giaHienTai = 'Liên hệ để biết giá';
+                                }
+                            } else {
+                                console.error('Lỗi tải giá, status:', priceRes.status);
+                                const errorText = await priceRes.text();
+                                console.error('Error response:', errorText);
+                                giaHienTai = 'Liên hệ để biết giá';
+                            }
+                        } catch (e) {
+                            console.error('Lỗi tải giá:', e);
+                            giaHienTai = 'Liên hệ để biết giá';
+                        }
+                    } else {
+                        giaHienTai = 'Chưa phân loại';
+                    }
+                    
+                    infoDiv.innerHTML = `
+                        <div class="mb-3">
+                            ${xe.imageURL ? 
+                                `<img src="${xe.imageURL}" alt="${xe.tenXe || ''}" class="img-fluid rounded" style="max-height: 400px; width: 100%; object-fit: contain;" 
+                                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Crect fill=\\'%23ddd\\' width=\\'100%25\\' height=\\'400\\'/%3E%3Ctext fill=\\'%23999\\' font-family=\\'Arial\\' font-size=\\'20\\' x=\\'50%25\\' y=\\'50%25\\' text-anchor=\\'middle\\' dominant-baseline=\\'middle\\'%3EKhông có hình ảnh%3C/text%3E%3C/svg%3E'; this.onerror=null;">` :
+                                `<div class="bg-light d-flex align-items-center justify-content-center rounded" style="height: 400px;">
+                                    <i class="fas fa-car fa-5x text-muted"></i>
+                                </div>`
+                            }
+                        </div>
+                        <h3 class="mb-3">${xe.tenXe || 'N/A'}</h3>
+                        <div class="text-start">
+                            <p><strong><i class="fas fa-id-badge text-primary"></i> Biển số xe:</strong> 
+                               <span class="badge bg-primary fs-6">${xe.bienSoXe || 'N/A'}</span></p>
+                            <p><strong><i class="fas fa-car-side text-info"></i> Loại xe:</strong> 
+                               ${xe.loaiXe ? `<span class="badge bg-info fs-6">${xe.loaiXe.tenLoaiXe}</span>` : 'N/A'}</p>
+                            ${xe.loaiXe?.moTa ? `<p><strong><i class="fas fa-info-circle"></i> Mô tả:</strong> ${xe.loaiXe.moTa}</p>` : ''}
+                            <p><strong><i class="fas fa-tag text-success"></i> Giá thuê:</strong> 
+                               <span class="text-success fw-bold fs-5">${giaHienTai}</span></p>
+                            <p><strong><i class="fas fa-check-circle text-success"></i> Trạng thái:</strong> 
+                               <span class="badge bg-success fs-6">${xe.trangThai || 'Sẵn sàng'}</span></p>
+                        </div>
+                    `;
+                    
+                    // Set maLoaiXe để đặt xe
+                    document.getElementById('selectedMaLoaiXe').value = xe.maLoaiXe || '';
+                } else {
+                    document.getElementById('xeInfo').innerHTML = 
+                        '<div class="alert alert-danger">Không tìm thấy thông tin xe</div>';
+                }
+            } catch (error) {
+                console.error('Lỗi tải thông tin xe:', error);
+                document.getElementById('xeInfo').innerHTML = 
+                    '<div class="alert alert-danger">Không thể tải thông tin xe</div>';
+            }
+        }
+        
+        // Xử lý form đặt xe
+        document.getElementById('phieuDatXeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            showAlert('', 'success');
+            
+            const user = await getCurrentUser();
+            if (!user || !user.maKH) {
+                showAlert('Không xác định được thông tin khách hàng hoặc chưa đăng nhập!');
+                return;
+            }
+            
+            const maLoaiXe = Number(document.getElementById('selectedMaLoaiXe').value);
+            const ngayDuKienNhan = document.getElementById('ngayDuKienNhan').value;
+            
+            if (!maLoaiXe || !ngayDuKienNhan) {
+                showAlert('Vui lòng điền đầy đủ thông tin!');
+                return;
+            }
+            
+            // Kiểm tra ngày không được là quá khứ
+            const selectedDate = new Date(ngayDuKienNhan);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (selectedDate < today) {
+                showAlert('Ngày dự kiến nhận không được là quá khứ!');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/PhieuDatXeApi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ maKH: user.maKH, maLoaiXe, ngayDuKienNhan })
+                });
+                const result = await res.json();
+                
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Đặt xe thành công!', 'success');
+                    setTimeout(() => { 
+                        window.location.href = '/Customer/PhieuDatXes'; 
+                    }, 1500);
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi đặt xe!');
+                    console.error('Lỗi đặt xe:', result);
+                }
+            } catch (error) {
+                console.error('Lỗi kết nối:', error);
+                showAlert('Không thể gửi yêu cầu đặt xe! Vui lòng thử lại sau.');
+            }
+        });
+        
+        // Load thông tin xe khi trang được tải
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const maXe = urlParams.get('maXe') || @(ViewBag.MaXe != null ? ViewBag.MaXe.ToString() : "null");
+            
+            if (maXe) {
+                loadXeInfo(maXe);
+            } else {
+                document.getElementById('xeInfo').innerHTML = 
+                    '<div class="alert alert-warning">Vui lòng chọn xe từ trang chủ</div>';
+                document.getElementById('phieuDatXeForm').style.display = 'none';
+            }
+        };
+    </script>
+}
+

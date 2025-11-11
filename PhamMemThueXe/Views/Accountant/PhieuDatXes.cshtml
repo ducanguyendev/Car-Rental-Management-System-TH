@@ -1,0 +1,210 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quản lý phiếu đặt xe";
+}
+
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="fas fa-calendar-check"></i> Phiếu đặt xe</h2>
+    <a asp-action="CreatePhieuDatXe" class="btn btn-success">
+        <i class="fas fa-plus"></i> Tạo mới
+    </a>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="phieuDatXeTable">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Khách hàng</th>
+                        <th>Loại xe</th>
+                        <th>Ngày đặt</th>
+                        <th>Ngày dự kiến</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="phieuDatXeTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<a asp-action="Index" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Quay lại
+</a>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        function getStatusBadge(trangThai) {
+            const badges = {
+                'Đang chờ': '<span class="badge bg-warning text-dark">Đang chờ</span>',
+                'Đã xác nhận': '<span class="badge bg-success">Đã xác nhận</span>',
+                'Đã huỷ': '<span class="badge bg-danger">Đã huỷ</span>',
+                'Đã thành hợp đồng': '<span class="badge bg-info">Đã thành hợp đồng</span>'
+            };
+            return badges[trangThai] || '<span class="badge bg-secondary">' + trangThai + '</span>';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        async function loadPhieuDatXes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/PhieuDatXeApi`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showAlert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'danger');
+                        return;
+                    }
+                    if (response.status === 403) {
+                        showAlert('Bạn không có quyền truy cập chức năng này.', 'danger');
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const tbody = document.getElementById('phieuDatXeTableBody');
+                    if (result.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có phiếu đặt xe nào</td></tr>';
+                    } else {
+                        tbody.innerHTML = result.data.map(item => `
+                            <tr>
+                                <td><strong>#${item.maDatXe}</strong></td>
+                                <td>${item.khachHang?.hoTen || 'N/A'}</td>
+                                <td>${item.loaiXe?.tenLoaiXe || 'N/A'}</td>
+                                <td>${formatDate(item.ngayDat)}</td>
+                                <td>${formatDate(item.ngayDuKienNhan)}</td>
+                                <td>${getStatusBadge(item.trangThai)}</td>
+                                <td>
+                                    <select class="form-select form-select-sm d-inline w-auto" 
+                                            onchange="updateStatus(${item.maDatXe}, this.value, '${item.trangThai}')" 
+                                            ${item.trangThai === 'Đã thành hợp đồng' ? 'disabled' : ''}>
+                                        <option value="Đang chờ" ${item.trangThai === 'Đang chờ' ? 'selected' : ''}>Đang chờ</option>
+                                        <option value="Đã xác nhận" ${item.trangThai === 'Đã xác nhận' ? 'selected' : ''}>Đã xác nhận</option>
+                                        <option value="Đã huỷ" ${item.trangThai === 'Đã huỷ' ? 'selected' : ''}>Đã huỷ</option>
+                                        <option value="Đã thành hợp đồng" ${item.trangThai === 'Đã thành hợp đồng' ? 'selected' : ''}>Đã thành hợp đồng</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-danger ms-1" onclick="deletePhieuDatXe(${item.maDatXe})" 
+                                            ${item.trangThai === 'Đã thành hợp đồng' ? 'disabled title="Không thể xóa khi đã có hợp đồng"' : 'title="Xóa"'}
+                                            ${item.trangThai === 'Đã thành hợp đồng' ? 'style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function updateStatus(id, newStatus, currentStatus) {
+            if (newStatus === currentStatus) {
+                return;
+            }
+
+            if (!confirm(`Bạn có chắc muốn đổi trạng thái sang "${newStatus}"?`)) {
+                // Reset lại dropdown về giá trị cũ
+                location.reload();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/PhieuDatXeApi/${id}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        trangThai: newStatus
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message || 'Cập nhật trạng thái thành công!', 'success');
+                    loadPhieuDatXes();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                    loadPhieuDatXes(); // Reload để reset dropdown
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+                loadPhieuDatXes(); // Reload để reset dropdown
+            }
+        }
+
+        async function deletePhieuDatXe(id) {
+            if (!confirm('Bạn có chắc muốn xóa phiếu đặt xe này?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/PhieuDatXeApi/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message || 'Xóa phiếu đặt xe thành công!', 'success');
+                    loadPhieuDatXes();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi xóa', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        }
+
+        // Load danh sách khi trang được tải
+        window.onload = function() {
+            loadPhieuDatXes();
+        };
+    </script>
+}

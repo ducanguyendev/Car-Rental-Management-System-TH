@@ -1,0 +1,396 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Trang chủ";
+}
+
+<div class="text-center py-5">
+    <h1 class="display-4 mb-4">
+        <i class="fas fa-car text-primary"></i> Phần mềm quản lý thuê xe
+    </h1>
+    <p class="lead">Hệ thống quản lý cho thuê xe chuyên nghiệp</p>
+</div>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="alert alert-success" role="alert">
+        <h4><i class="fas fa-check-circle"></i> Chào mừng bạn trở lại!</h4>
+        <p>Xin chào <strong>@ViewBag.UserName</strong>, bạn đang đăng nhập với quyền <span class="badge bg-secondary">@ViewBag.UserRole</span></p>
+    </div>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-sign-in-alt fa-3x text-primary mb-4"></i>
+                    <h3>Chào mừng đến với hệ thống</h3>
+                    <p class="text-muted mb-4">Đăng nhập để bắt đầu sử dụng các chức năng của hệ thống</p>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a asp-controller="Auth" asp-action="Login" class="btn btn-primary btn-lg me-md-2">
+                            <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                        </a>
+                        <a asp-controller="Auth" asp-action="Register" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-user-plus"></i> Đăng ký
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Danh sách xe cho thuê -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-car"></i> Xe cho thuê</h4>
+            </div>
+            <div class="card-body">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <!-- Filter Section -->
+                    <div class="card mb-4" style="background-color: #f8f9fa;">
+                        <div class="card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold"><i class="fas fa-filter"></i> Lọc theo loại xe:</label>
+                                    <select class="form-select" id="filterLoaiXe">
+                                        <option value="">Tất cả loại xe</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold"><i class="fas fa-search"></i> Tìm kiếm:</label>
+                                    <input type="text" class="form-control" id="searchInput" 
+                                           placeholder="Nhập tên xe hoặc biển số...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold"><i class="fas fa-sort"></i> Sắp xếp:</label>
+                                    <select class="form-select" id="sortSelect">
+                                        <option value="default">Mặc định</option>
+                                        <option value="name-asc">Tên A-Z</option>
+                                        <option value="name-desc">Tên Z-A</option>
+                                        <option value="price-asc">Giá thấp → cao</option>
+                                        <option value="price-desc">Giá cao → thấp</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                                        <i class="fas fa-redo"></i> Đặt lại
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="xesContainer" class="row">
+                        <div class="col-12 text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                        <h5>Xem danh sách xe cho thuê</h5>
+                        <p class="text-muted">Vui lòng đăng nhập để xem danh sách xe có sẵn</p>
+                        <a asp-controller="Auth" asp-action="Login" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    @section Scripts {
+        <style>
+            .xe-card {
+                transition: transform 0.3s, box-shadow 0.3s;
+                cursor: pointer;
+                height: 100%;
+            }
+            .xe-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            }
+            .xe-image {
+                height: 200px;
+                object-fit: cover;
+                width: 100%;
+            }
+            .xe-image-placeholder {
+                height: 200px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 2.5rem;
+            }
+            .price-badge {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+                padding: 0.5rem 1rem;
+                border-radius: 20px;
+                font-weight: bold;
+            }
+        </style>
+        <script>
+            const API_BASE = window.location.origin;
+            let allXes = [];
+            let loaiXes = [];
+            let giaHienTai = {};
+            
+            async function loadGia(maLoaiXe) {
+                if (!maLoaiXe) return null;
+                
+                if (giaHienTai[maLoaiXe]) {
+                    return giaHienTai[maLoaiXe];
+                }
+                
+                try {
+                    const res = await fetch(`${API_BASE}/api/BangGiaApi/price-for-type/${maLoaiXe}`, {
+                        credentials: 'include'
+                    });
+                    if (res.ok) {
+                        const result = await res.json();
+                        if (result.success && result.data && result.data.donGiaTheoNgay) {
+                            giaHienTai[maLoaiXe] = result.data.donGiaTheoNgay;
+                            return giaHienTai[maLoaiXe];
+                        }
+                    }
+                } catch (e) {
+                    console.error('Lỗi tải giá:', e);
+                }
+                return null;
+            }
+            
+            async function loadLoaiXes() {
+                try {
+                    const response = await fetch(`${API_BASE}/api/LoaiXeApi`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (!response.ok) throw new Error('Lỗi tải danh sách loại xe');
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        loaiXes = result.data;
+                        const options = loaiXes.map(lx => 
+                            `<option value="${lx.maLoaiXe}">${lx.tenLoaiXe}</option>`
+                        ).join('');
+                        
+                        document.getElementById('filterLoaiXe').innerHTML = 
+                            '<option value="">Tất cả loại xe</option>' + options;
+                    }
+                } catch (error) {
+                    console.error('Error loading loai xe:', error);
+                }
+            }
+            
+            async function loadXes() {
+                try {
+                    const response = await fetch(`${API_BASE}/api/XeApi/available`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        allXes = result.data;
+                        
+                        // Load giá cho tất cả loại xe
+                        const uniqueLoaiXeIds = [...new Set(allXes.map(x => x.loaiXe?.maLoaiXe).filter(Boolean))];
+                        
+                        // Hiển thị danh sách xe trước (với "Đang tải...")
+                        filterAndDisplayXes();
+                        
+                        // Load giá và cập nhật lại
+                        await Promise.all(uniqueLoaiXeIds.map(id => loadGia(id)));
+                        
+                        // Cập nhật lại sau khi load giá xong
+                        filterAndDisplayXes();
+                    }
+                } catch (error) {
+                    console.error('Error loading xes:', error);
+                    document.getElementById('xesContainer').innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                            <p class="text-muted">Không thể tải danh sách xe. Vui lòng thử lại sau.</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            function filterAndDisplayXes() {
+                const filterLoaiXe = document.getElementById('filterLoaiXe')?.value || '';
+                const searchTerm = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+                const sortBy = document.getElementById('sortSelect')?.value || 'default';
+                
+                let filteredXes = [...allXes];
+                
+                // Lọc theo loại xe
+                if (filterLoaiXe) {
+                    filteredXes = filteredXes.filter(x => x.loaiXe && x.loaiXe.maLoaiXe == filterLoaiXe);
+                }
+                
+                // Lọc theo tìm kiếm (tên xe hoặc biển số)
+                if (searchTerm) {
+                    filteredXes = filteredXes.filter(x => 
+                        (x.tenXe && x.tenXe.toLowerCase().includes(searchTerm)) ||
+                        (x.bienSoXe && x.bienSoXe.toLowerCase().includes(searchTerm))
+                    );
+                }
+                
+                // Sắp xếp
+                filteredXes.sort((a, b) => {
+                    switch(sortBy) {
+                        case 'name-asc':
+                            return (a.tenXe || '').localeCompare(b.tenXe || '');
+                        case 'name-desc':
+                            return (b.tenXe || '').localeCompare(a.tenXe || '');
+                        case 'price-asc':
+                            const giaA = giaHienTai[a.loaiXe?.maLoaiXe] || 0;
+                            const giaB = giaHienTai[b.loaiXe?.maLoaiXe] || 0;
+                            return giaA - giaB;
+                        case 'price-desc':
+                            const giaA2 = giaHienTai[a.loaiXe?.maLoaiXe] || 0;
+                            const giaB2 = giaHienTai[b.loaiXe?.maLoaiXe] || 0;
+                            return giaB2 - giaA2;
+                        default:
+                            return 0;
+                    }
+                });
+                
+                displayXes(filteredXes);
+            }
+            
+            function displayXes(xesToShow = null) {
+                const container = document.getElementById('xesContainer');
+                const filteredXes = xesToShow || allXes;
+                
+                if (filteredXes.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">Không tìm thấy xe nào phù hợp với bộ lọc</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const userRole = '@ViewBag.UserRole';
+                const isCustomer = userRole === 'Customer';
+                
+                // Hiển thị tối đa 12 xe trên trang chủ
+                const xesToDisplay = filteredXes.slice(0, 12);
+                
+                container.innerHTML = xesToDisplay.map(xe => {
+                    const maLoaiXe = xe.loaiXe?.maLoaiXe;
+                    const gia = giaHienTai[maLoaiXe];
+                    const giaFormatted = gia > 0 ? 
+                        new Intl.NumberFormat('vi-VN').format(gia) + ' VNĐ/ngày' : 
+                        'Đang tải...';
+                    const onClick = isCustomer ? `onclick="window.location.href='/Customer/BookCar?maXe=${xe.maXe}'"` : '';
+                    
+                    return `
+                        <div class="col-md-4 col-lg-4 mb-4">
+                            <div class="card xe-card shadow-sm" ${onClick}>
+                                ${xe.imageURL ? 
+                                    `<img src="${xe.imageURL}" alt="${xe.tenXe || ''}" class="card-img-top xe-image" 
+                                          onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'xe-image-placeholder\\'><i class=\\'fas fa-car\\'></i></div>'; this.remove();" />` :
+                                    `<div class="xe-image-placeholder">
+                                        <i class="fas fa-car"></i>
+                                    </div>`
+                                }
+                                <div class="card-body">
+                                    <h6 class="card-title">${xe.tenXe || 'N/A'}</h6>
+                                    <p class="card-text">
+                                        <span class="badge bg-primary mb-2">${xe.bienSoXe || 'N/A'}</span><br>
+                                        ${xe.loaiXe ? 
+                                            `<span class="badge bg-info">${xe.loaiXe.tenLoaiXe}</span>` :
+                                            '<span class="badge bg-secondary">Chưa phân loại</span>'
+                                        }
+                                    </p>
+                                    <div class="mt-2 text-center">
+                                        <div class="price-badge d-inline-block" id="price-${xe.maXe}">
+                                            <i class="fas fa-tag"></i> ${giaFormatted}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Update giá cho từng xe sau khi render
+                xesToDisplay.forEach(xe => {
+                    const maLoaiXe = xe.loaiXe?.maLoaiXe;
+                    if (maLoaiXe && giaHienTai[maLoaiXe]) {
+                        const priceElement = document.getElementById(`price-${xe.maXe}`);
+                        if (priceElement) {
+                            const giaFormatted = new Intl.NumberFormat('vi-VN').format(giaHienTai[maLoaiXe]) + ' VNĐ/ngày';
+                            priceElement.innerHTML = `<i class="fas fa-tag"></i> ${giaFormatted}`;
+                        }
+                    } else if (maLoaiXe) {
+                        // Nếu chưa có giá, thử load lại
+                        loadGia(maLoaiXe).then(() => {
+                            const priceElement = document.getElementById(`price-${xe.maXe}`);
+                            if (priceElement && giaHienTai[maLoaiXe]) {
+                                const giaFormatted = new Intl.NumberFormat('vi-VN').format(giaHienTai[maLoaiXe]) + ' VNĐ/ngày';
+                                priceElement.innerHTML = `<i class="fas fa-tag"></i> ${giaFormatted}`;
+                            } else if (priceElement) {
+                                priceElement.innerHTML = '<i class="fas fa-tag"></i> Liên hệ';
+                            }
+                        });
+                    }
+                });
+                
+                // Hiển thị số lượng kết quả và nút xem thêm
+                let additionalInfo = `<div class="col-12 mt-3 mb-2"><p class="text-muted"><i class="fas fa-info-circle"></i> Hiển thị ${xesToDisplay.length} / ${filteredXes.length} xe</p></div>`;
+                
+                // Nếu có nhiều hơn 12 xe, thêm nút xem thêm
+                if (filteredXes.length > 12) {
+                    if (isCustomer) {
+                        additionalInfo += `<div class="col-12 text-center mt-3"><a href="/Customer/Index" class="btn btn-primary"><i class="fas fa-eye"></i> Xem tất cả ${filteredXes.length} xe</a></div>`;
+                    } else {
+                        additionalInfo += '<div class="col-12 text-center mt-3"><p class="text-muted"><i class="fas fa-info-circle"></i> Đăng nhập với tài khoản Customer để đặt xe</p></div>';
+                    }
+                }
+                
+                container.innerHTML += additionalInfo;
+            }
+            
+            function resetFilters() {
+                document.getElementById('filterLoaiXe').value = '';
+                document.getElementById('searchInput').value = '';
+                document.getElementById('sortSelect').value = 'default';
+                filterAndDisplayXes();
+            }
+            
+            // Load xe khi trang được tải
+            window.addEventListener('DOMContentLoaded', function() {
+                loadLoaiXes();
+                loadXes();
+                
+                // Event listeners cho filter
+                document.getElementById('filterLoaiXe').addEventListener('change', filterAndDisplayXes);
+                document.getElementById('searchInput').addEventListener('input', filterAndDisplayXes);
+                document.getElementById('sortSelect').addEventListener('change', filterAndDisplayXes);
+            });
+        </script>
+    }
+}
+

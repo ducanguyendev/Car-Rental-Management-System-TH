@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tạo Hợp Đồng Mới"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Customer Spinner -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilKhachHang"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Khách hàng"
+                app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tvTitle"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <Spinner
+                    android:id="@+id/spinnerKhachHang"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Booking Spinner -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilPhieuDatXe"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Phiếu đặt xe"
+                app:startIconDrawable="@android:drawable/ic_menu_recent_history"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tilKhachHang"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <Spinner
+                    android:id="@+id/spinnerPhieuDatXe"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Pickup Date -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilNgayNhanXe"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Ngày nhận xe"
+                app:startIconDrawable="@android:drawable/ic_menu_today"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tilPhieuDatXe"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/btnChonNgayNhan">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etNgayNhanXe"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:clickable="true"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Select Pickup Date Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnChonNgayNhan"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chọn"
+                app:layout_constraintTop_toBottomOf="@+id/tilPhieuDatXe"
+                app:layout_constraintBottom_toBottomOf="@+id/tilNgayNhanXe"
+                app:layout_constraintStart_toEndOf="@+id/tilNgayNhanXe"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:cornerRadius="8dp" />
+
+            <!-- Return Date -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilNgayTraXe"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Ngày trả xe"
+                app:startIconDrawable="@android:drawable/ic_menu_today"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tilNgayNhanXe"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/btnChonNgayTra">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etNgayTraXe"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:clickable="true"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Select Return Date Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnChonNgayTra"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Chọn"
+                app:layout_constraintTop_toBottomOf="@+id/tilNgayNhanXe"
+                app:layout_constraintBottom_toBottomOf="@+id/tilNgayTraXe"
+                app:layout_constraintStart_toEndOf="@+id/tilNgayTraXe"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:cornerRadius="8dp" />
+
+            <!-- Pickup Location -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDiaDiemNhan"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Địa điểm nhận"
+                app:startIconDrawable="@android:drawable/ic_menu_mylocation"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tilNgayTraXe"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etDiaDiemNhan"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPostalAddress"
+                    android:maxLines="2" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Return Location -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilDiaDiemTra"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Địa điểm trả"
+                app:startIconDrawable="@android:drawable/ic_menu_mylocation"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tilDiaDiemNhan"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etDiaDiemTra"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPostalAddress"
+                    android:maxLines="2" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Deposit -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilTienDatCoc"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Tiền đặt cọc"
+                app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:layout_constraintTop_toBottomOf="@+id/tilDiaDiemTra"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTienDatCoc"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Divider -->
+            <View
+                android:id="@+id/divider"
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginTop="16dp"
+                app:layout_constraintTop_toBottomOf="@+id/tilTienDatCoc"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Select Cars Title -->
+            <TextView
+                android:id="@+id/tvChonXe"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Chọn các xe cho thuê:"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                app:layout_constraintTop_toBottomOf="@+id/divider"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Selected Cars RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvChonXe"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:layout_constraintTop_toBottomOf="@+id/tvChonXe"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:listitem="@layout/item_chon_xe" />
+
+            <!-- Total Price -->
+            <TextView
+                android:id="@+id/tvTongTien"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Tổng tiền: 0 VND"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/holo_green_dark"
+                android:layout_marginTop="16dp"
+                app:layout_constraintTop_toBottomOf="@+id/rvChonXe"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Create Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTaoHopDong"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Tạo Hợp Đồng"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp"
+                app:layout_constraintTop_toBottomOf="@+id/tvTongTien"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:cornerRadius="8dp" />
+
+            <!-- ProgressBar -->
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </ScrollView>
+
+</layout>
+

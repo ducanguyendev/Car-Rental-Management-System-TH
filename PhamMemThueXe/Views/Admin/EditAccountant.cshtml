@@ -1,0 +1,59 @@
+@model PhamMemThueXe.Models.CreateAccountantViewModel
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Sửa tài khoản kế toán";
+    var id = ViewBag.Id;
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-warning">
+                <h3 class="mb-0"><i class="fas fa-edit"></i> Sửa tài khoản kế toán</h3>
+            </div>
+            <div class="card-body">
+                <form asp-action="EditAccountant" asp-route-id="@id" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="TenDangNhap" class="form-label">Tên đăng nhập</label>
+                        <input asp-for="TenDangNhap" class="form-control" />
+                        <span asp-validation-for="TenDangNhap" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="HoTen" class="form-label">Họ và tên</label>
+                        <input asp-for="HoTen" class="form-control" />
+                        <span asp-validation-for="HoTen" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="MatKhau" class="form-label">Mật khẩu mới (để trống nếu không đổi)</label>
+                        <input asp-for="MatKhau" class="form-control" />
+                        <span asp-validation-for="MatKhau" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ConfirmMatKhau" class="form-label">Xác nhận mật khẩu mới</label>
+                        <input asp-for="ConfirmMatKhau" class="form-control" />
+                        <span asp-validation-for="ConfirmMatKhau" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save"></i> Cập nhật
+                        </button>
+                        <a asp-action="Accountants" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Hủy
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

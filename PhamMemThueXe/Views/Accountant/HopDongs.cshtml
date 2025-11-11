@@ -1,0 +1,201 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quản lý hợp đồng";
+}
+
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="fas fa-file-contract"></i> Hợp đồng</h2>
+    <a asp-action="CreateHopDong" class="btn btn-success">
+        <i class="fas fa-plus"></i> Tạo hợp đồng
+    </a>
+</div>
+
+<div id="alertContainer"></div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle"></i> @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="hopDongTable">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Khách hàng</th>
+                        <th>Ngày lập</th>
+                        <th>Tổng tiền</th>
+                        <th>Đặt cọc</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="hopDongTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<a asp-action="Index" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Quay lại
+</a>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN').format(amount);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        function getStatusBadge(trangThai) {
+            const badges = {
+                'Đang thuê': '<span class="badge bg-warning text-dark">Đang thuê</span>',
+                'Đã hoàn thành': '<span class="badge bg-success">Đã hoàn thành</span>',
+                'Đã huỷ': '<span class="badge bg-danger">Đã huỷ</span>'
+            };
+            return badges[trangThai] || '<span class="badge bg-secondary">' + trangThai + '</span>';
+        }
+
+        async function loadHopDongs() {
+            try {
+                const response = await fetch(`${API_BASE}/api/HopDongApi`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showAlert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'danger');
+                        return;
+                    }
+                    if (response.status === 403) {
+                        showAlert('Bạn không có quyền truy cập chức năng này.', 'danger');
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const tbody = document.getElementById('hopDongTableBody');
+                    if (result.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có hợp đồng nào</td></tr>';
+                    } else {
+                        tbody.innerHTML = result.data.map(item => `
+                            <tr>
+                                <td><strong>#${item.maHopDong}</strong></td>
+                                <td>${item.khachHang?.hoTen || 'N/A'}</td>
+                                <td>${formatDate(item.ngayLap)}</td>
+                                <td><strong>${formatCurrency(item.tongTien)} VNĐ</strong></td>
+                                <td>${formatCurrency(item.tienDatCoc)} VNĐ</td>
+                                <td>${getStatusBadge(item.trangThai)}</td>
+                                <td>
+                                    <select class="form-select form-select-sm d-inline w-auto" 
+                                            onchange="updateStatus(${item.maHopDong}, this.value, '${item.trangThai}')">
+                                        <option value="Đang thuê" ${item.trangThai === 'Đang thuê' ? 'selected' : ''}>Đang thuê</option>
+                                        <option value="Đã hoàn thành" ${item.trangThai === 'Đã hoàn thành' ? 'selected' : ''}>Đã hoàn thành</option>
+                                        <option value="Đã huỷ" ${item.trangThai === 'Đã huỷ' ? 'selected' : ''}>Đã huỷ</option>
+                                    </select>
+                                    <a href="@Url.Action("CreateHoaDon", "Accountant")?hopDongId=${item.maHopDong}" 
+                                       class="btn btn-sm btn-info ms-1" title="Tạo hóa đơn">
+                                        <i class="fas fa-receipt"></i> Hóa đơn
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server: ' + (error.message || 'Không thể tải dữ liệu'), 'danger');
+                console.error('Error details:', error);
+            }
+        }
+
+        async function updateStatus(id, newStatus, currentStatus) {
+            if (newStatus === currentStatus) {
+                return;
+            }
+
+            if (!confirm(`Bạn có chắc muốn đổi trạng thái hợp đồng sang "${newStatus}"?`)) {
+                // Reset lại dropdown về giá trị cũ
+                location.reload();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/HopDongApi/${id}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        trangThai: newStatus
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message || 'Cập nhật trạng thái hợp đồng thành công!', 'success');
+                    loadHopDongs();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                    loadHopDongs(); // Reload để reset dropdown
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+                loadHopDongs(); // Reload để reset dropdown
+            }
+        }
+
+        // Load danh sách khi trang được tải
+        window.onload = function() {
+            loadHopDongs();
+        };
+    </script>
+}

@@ -1,0 +1,178 @@
+@model PhamMemThueXe.Models.RegisterViewModel
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Đăng ký tài khoản";
+}
+
+<div id="alertContainer"></div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h3 class="text-center mb-0"><i class="fas fa-user-plus"></i> Đăng ký tài khoản khách hàng</h3>
+            </div>
+            <div class="card-body">
+                <form id="registerForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2">Thông tin cá nhân</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Họ và tên *</label>
+                                <input type="text" class="form-control" id="hoTen" required />
+                                <span class="text-danger" id="hoTenError"></span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Số CMND *</label>
+                                <input type="text" class="form-control" id="soCMND" required />
+                                <span class="text-danger" id="soCMNDError"></span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Số hộ khẩu</label>
+                                <input type="text" class="form-control" id="soHoKhau" />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Số điện thoại</label>
+                                <input type="text" class="form-control" id="soDienThoai" />
+                                <span class="text-danger" id="soDienThoaiError"></span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Địa chỉ cơ quan</label>
+                                <textarea class="form-control" id="diaChiCoQuan" rows="3"></textarea>
+                                <span class="text-danger" id="diaChiCoQuanError"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="border-bottom pb-2">Thông tin đăng nhập</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Tên đăng nhập *</label>
+                                <input type="text" class="form-control" id="tenDangNhap" required />
+                                <span class="text-danger" id="tenDangNhapError"></span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Mật khẩu *</label>
+                                <input type="password" class="form-control" id="matKhau" required />
+                                <span class="text-danger" id="matKhauError"></span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Xác nhận mật khẩu *</label>
+                                <input type="password" class="form-control" id="confirmMatKhau" required />
+                                <span class="text-danger" id="confirmMatKhauError"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-user-plus"></i> Đăng ký
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <div class="text-center">
+                    <p class="mb-0">Đã có tài khoản?</p>
+                    <a asp-action="Login" class="btn btn-outline-primary mt-2">
+                        <i class="fas fa-sign-in-alt"></i> Đăng nhập ngay
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        function clearErrors() {
+            const errorFields = ['hoTen', 'soCMND', 'soDienThoai', 'diaChiCoQuan', 'tenDangNhap', 'matKhau', 'confirmMatKhau'];
+            errorFields.forEach(field => {
+                const errorElement = document.getElementById(field + 'Error');
+                if (errorElement) errorElement.textContent = '';
+            });
+        }
+
+        function displayErrors(errors) {
+            for (const [key, value] of Object.entries(errors)) {
+                const errorElement = document.getElementById(key + 'Error');
+                if (errorElement && Array.isArray(value)) {
+                    errorElement.textContent = value[0];
+                }
+            }
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            clearErrors();
+
+            const matKhau = document.getElementById('matKhau').value;
+            const confirmMatKhau = document.getElementById('confirmMatKhau').value;
+
+            if (matKhau !== confirmMatKhau) {
+                document.getElementById('confirmMatKhauError').textContent = 'Mật khẩu xác nhận không khớp';
+                showAlert('Mật khẩu xác nhận không khớp', 'danger');
+                return;
+            }
+
+            const requestData = {
+                hoTen: document.getElementById('hoTen').value.trim(),
+                soCMND: document.getElementById('soCMND').value.trim(),
+                soHoKhau: document.getElementById('soHoKhau').value.trim() || null,
+                soDienThoai: document.getElementById('soDienThoai').value.trim() || null,
+                diaChiCoQuan: document.getElementById('diaChiCoQuan').value.trim() || null,
+                tenDangNhap: document.getElementById('tenDangNhap').value.trim(),
+                matKhau: matKhau,
+                confirmMatKhau: confirmMatKhau
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/AuthApi/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Đăng ký thành công! Vui lòng đăng nhập.', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/Auth/Login';
+                    }, 1500);
+                } else {
+                    if (result.errors) {
+                        displayErrors(result.errors);
+                    }
+                    showAlert(result.message || 'Có lỗi xảy ra khi đăng ký', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+    </script>
+}

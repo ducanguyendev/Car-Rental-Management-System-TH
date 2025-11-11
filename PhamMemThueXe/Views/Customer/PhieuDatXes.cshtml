@@ -1,0 +1,90 @@
+@{ Layout = "_Layout"; ViewData["Title"] = "Phiếu đặt xe"; }
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="fas fa-calendar-check"></i> Phiếu đặt xe của tôi</h2>
+    <a asp-action="CreatePhieuDatXe" class="btn btn-success">
+        <i class="fas fa-plus"></i> Đặt xe
+    </a>
+</div>
+<div id="alertContainer"></div>
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Mã</th>
+                    <th>Loại xe</th>
+                    <th>Ngày đặt</th>
+                    <th>Ngày dự kiến</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="phieuDatXeTableBody">
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<a asp-action="Index" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Quay lại</a>
+@section Scripts {
+<script>
+    const API_BASE = window.location.origin;
+
+    async function getCurrentUser() {
+        const res = await fetch(`${API_BASE}/api/AuthApi/me`, { credentials: 'include' });
+        if (!res.ok) return null;
+        const r = await res.json();
+        return r.data || null;
+    }
+    function getStatusBadge(status) {
+        if(status === "Đã xác nhận") return '<span class="badge bg-success">Đã xác nhận</span>';
+        if(status === "Đã huỷ") return '<span class="badge bg-danger">Đã huỷ</span>';
+        return '<span class="badge bg-warning text-dark">' + (status||'Đang chờ') + '</span>';
+    }
+    function formatDate(date) { if(!date) return ''; return new Date(date).toLocaleDateString('vi-VN'); }
+    function showAlert(msg, type='danger') {
+        document.getElementById('alertContainer').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+    async function loadPhieuDatXes() {
+        const user = await getCurrentUser();
+        if (!user || !user.username) {
+            showAlert('Không xác định được thông tin khách hàng hoặc chưa đăng nhập!', 'danger');
+            document.getElementById('phieuDatXeTableBody').innerHTML = '';
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/api/PhieuDatXeApi/by-username/${user.username}`, { credentials: 'include' });
+            if (!res.ok) throw new Error('Kết nối API thất bại');
+            const result = await res.json();
+            if(result.success) {
+                const data = result.data;
+                if (data.length === 0) {
+                    document.getElementById('phieuDatXeTableBody').innerHTML = '<tr><td colspan="5" class="text-center">Chưa có phiếu đặt xe nào</td></tr>';
+                } else {
+                    document.getElementById('phieuDatXeTableBody').innerHTML = data.map(item => `
+                        <tr>
+                            <td>#${item.maDatXe}</td>
+                            <td>${item.loaiXe?.tenLoaiXe || "N/A"}</td>
+                            <td>${formatDate(item.ngayDat)}</td>
+                            <td>${formatDate(item.ngayDuKienNhan)}</td>
+                            <td>${getStatusBadge(item.trangThai)}</td>
+                        </tr>
+                    `).join('');
+                }
+            } else {
+                showAlert(result.message || 'Lỗi tải phiếu đặt xe!', 'danger');
+                document.getElementById('phieuDatXeTableBody').innerHTML = '';
+            }
+        } catch(e) {
+            showAlert('Không thể tải thông tin phiếu đặt xe!');
+            document.getElementById('phieuDatXeTableBody').innerHTML = '';
+        }
+    }
+    loadPhieuDatXes();
+</script>
+}

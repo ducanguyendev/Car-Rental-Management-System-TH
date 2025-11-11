@@ -1,0 +1,179 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quản lý khách hàng";
+}
+
+<div class="d-flex justify-content-between mb-4">
+    <h2><i class="fas fa-users"></i> Khách hàng</h2>
+    <a asp-action="CreateKhachHang" class="btn btn-success">
+        <i class="fas fa-plus"></i> Thêm mới
+    </a>
+</div>
+
+<div id="alertContainer"></div>
+
+<!-- Search bar -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-10">
+                <input type="text" class="form-control" id="searchInput" 
+                       placeholder="Tìm kiếm theo họ tên, CMND hoặc số điện thoại...">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="searchKhachHangs()">
+                    <i class="fas fa-search"></i> Tìm kiếm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="khachHangTable">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Họ tên</th>
+                        <th>CMND</th>
+                        <th>Số điện thoại</th>
+                        <th>Địa chỉ</th>
+                        <th>Số hợp đồng</th>
+                    </tr>
+                </thead>
+                <tbody id="khachHangTableBody">
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<a asp-action="Index" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Quay lại
+</a>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        async function loadKhachHangs() {
+            try {
+                const response = await fetch(`${API_BASE}/api/KhachHangApi`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showAlert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'danger');
+                        return;
+                    }
+                    if (response.status === 403) {
+                        showAlert('Bạn không có quyền truy cập chức năng này.', 'danger');
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayKhachHangs(result.data);
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function searchKhachHangs() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            
+            if (!keyword) {
+                loadKhachHangs();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/KhachHangApi/search?keyword=${encodeURIComponent(keyword)}`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayKhachHangs(result.data);
+                    if (result.data.length === 0) {
+                        showAlert('Không tìm thấy khách hàng nào', 'info');
+                    }
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        }
+
+        function displayKhachHangs(data) {
+            const tbody = document.getElementById('khachHangTableBody');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Chưa có khách hàng nào</td></tr>';
+            } else {
+                tbody.innerHTML = data.map(item => `
+                    <tr>
+                        <td><strong>#${item.maKH}</strong></td>
+                        <td><strong>${item.hoTen || ''}</strong></td>
+                        <td>${item.soCMND || ''}</td>
+                        <td>${item.soDienThoai || ''}</td>
+                        <td>${item.diaChiCoQuan || '<span class="text-muted">Chưa có</span>'}</td>
+                        <td>
+                            <span class="badge bg-info">
+                                <i class="fas fa-file-contract"></i> ${item.soHopDong || 0}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // Enter key search
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchKhachHangs();
+            }
+        });
+
+        // Load danh sách khi trang được tải
+        window.onload = function() {
+            loadKhachHangs();
+        };
+    </script>
+}

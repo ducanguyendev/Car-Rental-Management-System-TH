@@ -1,0 +1,291 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Thống kê hệ thống";
+}
+
+<style>
+    .stat-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-radius: 15px;
+        border: none;
+        border-left: 5px solid;
+        position: relative;
+        overflow: hidden;
+    }
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .stat-card.customers {
+        border-left-color: #007bff;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .stat-card.accountants {
+        border-left-color: #28a745;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    .stat-card.cars {
+        border-left-color: #ffc107;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    .stat-card.contracts {
+        border-left-color: #dc3545;
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    .stat-card.invoices {
+        border-left-color: #6f42c1;
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+    }
+    .stat-icon {
+        font-size: 3rem;
+        opacity: 0.8;
+    }
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 0.5rem 0;
+    }
+    .stat-label {
+        font-size: 1rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-top: 2rem;
+    }
+    .loading-spinner {
+        text-align: center;
+        padding: 3rem;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-bar"></i> Thống kê hệ thống</h2>
+    <button type="button" class="btn btn-primary" onclick="loadStatistics()">
+        <i class="fas fa-sync-alt"></i> Làm mới
+    </button>
+</div>
+
+<div id="alertContainer"></div>
+
+<div id="statsContainer">
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Đang tải...</span>
+        </div>
+        <p class="mt-3">Đang tải dữ liệu thống kê...</p>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a asp-controller="Admin" asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                const alert = document.querySelector('#alertContainer .alert');
+                if (alert) alert.remove();
+            }, 5000);
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('vi-VN').format(num);
+        }
+
+        async function loadStatistics() {
+            const container = document.getElementById('statsContainer');
+            container.innerHTML = `
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="mt-3">Đang tải dữ liệu thống kê...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/AdminApi/statistics`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+                    
+                    container.innerHTML = `
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-4">
+                                <div class="card stat-card customers h-100">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="stat-label">Khách hàng</div>
+                                                <div class="stat-value">${formatNumber(data.totalCustomers || 0)}</div>
+                                                <div class="stat-label mt-2">Tổng số khách hàng trong hệ thống</div>
+                                            </div>
+                                            <div class="stat-icon">
+                                                <i class="fas fa-users"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="card stat-card accountants h-100">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="stat-label">Nhân viên kế toán</div>
+                                                <div class="stat-value">${formatNumber(data.totalAccountants || 0)}</div>
+                                                <div class="stat-label mt-2">Tổng số nhân viên đang hoạt động</div>
+                                            </div>
+                                            <div class="stat-icon">
+                                                <i class="fas fa-user-tie"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="card stat-card cars h-100">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="stat-label">Xe</div>
+                                                <div class="stat-value">${formatNumber(data.totalCars || 0)}</div>
+                                                <div class="stat-label mt-2">Tổng số xe trong kho</div>
+                                            </div>
+                                            <div class="stat-icon">
+                                                <i class="fas fa-car"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <div class="card stat-card contracts h-100">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="stat-label">Hợp đồng</div>
+                                                <div class="stat-value">${formatNumber(data.totalContracts || 0)}</div>
+                                                <div class="stat-label mt-2">Tổng số hợp đồng đã tạo</div>
+                                            </div>
+                                            <div class="stat-icon">
+                                                <i class="fas fa-file-contract"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card stat-card invoices h-100">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="stat-label">Hóa đơn</div>
+                                                <div class="stat-value">${formatNumber(data.totalInvoices || 0)}</div>
+                                                <div class="stat-label mt-2">Tổng số hóa đơn đã lập</div>
+                                            </div>
+                                            <div class="stat-icon">
+                                                <i class="fas fa-receipt"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <h4 class="mb-4"><i class="fas fa-chart-pie"></i> Tổng quan hệ thống</h4>
+                            <div class="row text-center">
+                                <div class="col-md-3 mb-3">
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="h3 text-primary">${formatNumber(data.totalCustomers || 0)}</div>
+                                        <div class="text-muted">Khách hàng</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="h3 text-success">${formatNumber(data.totalAccountants || 0)}</div>
+                                        <div class="text-muted">Nhân viên</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="h3 text-warning">${formatNumber(data.totalCars || 0)}</div>
+                                        <div class="text-muted">Xe</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="h3 text-info">${formatNumber((data.totalContracts || 0) + (data.totalInvoices || 0))}</div>
+                                        <div class="text-muted">Tổng giao dịch</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi tải thống kê', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Không thể tải dữ liệu thống kê. Vui lòng thử lại sau.
+                    </div>
+                `;
+            }
+        }
+
+        // Load statistics khi trang được tải
+        window.onload = function() {
+            loadStatistics();
+        };
+    </script>
+}

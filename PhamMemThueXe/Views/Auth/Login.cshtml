@@ -1,0 +1,131 @@
+@model PhamMemThueXe.Models.LoginViewModel
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Đăng nhập";
+}
+
+<div id="alertContainer"></div>
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="text-center mb-0"><i class="fas fa-sign-in-alt"></i> Đăng nhập hệ thống</h3>
+            </div>
+            <div class="card-body">
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-user"></i> Tên đăng nhập
+                        </label>
+                        <input type="text" class="form-control" id="tenDangNhap" placeholder="Nhập tên đăng nhập" required />
+                        <span class="text-danger" id="tenDangNhapError"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="fas fa-lock"></i> Mật khẩu
+                        </label>
+                        <input type="password" class="form-control" id="matKhau" placeholder="Nhập mật khẩu" required />
+                        <span class="text-danger" id="matKhauError"></span>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="rememberMe" />
+                        <label class="form-check-label" for="rememberMe">
+                            Ghi nhớ đăng nhập
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                        </button>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <div class="text-center">
+                    <p class="mb-0">Chưa có tài khoản?</p>
+                    <a asp-action="Register" class="btn btn-outline-primary mt-2">
+                        <i class="fas fa-user-plus"></i> Đăng ký ngay
+                    </a>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <small><strong>Tài khoản mặc định:</strong><br>
+                    Username: <code>admin</code><br>
+                    Password: <code>admin123</code></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'danger') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        function clearErrors() {
+            document.getElementById('tenDangNhapError').textContent = '';
+            document.getElementById('matKhauError').textContent = '';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            clearErrors();
+
+            const requestData = {
+                tenDangNhap: document.getElementById('tenDangNhap').value.trim(),
+                matKhau: document.getElementById('matKhau').value,
+                rememberMe: document.getElementById('rememberMe').checked
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/AuthApi/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Đăng nhập thành công!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/Home/Index';
+                    }, 500);
+                } else {
+                    if (result.errors) {
+                        if (result.errors.TenDangNhap) {
+                            document.getElementById('tenDangNhapError').textContent = result.errors.TenDangNhap[0];
+                        }
+                        if (result.errors.MatKhau) {
+                            document.getElementById('matKhauError').textContent = result.errors.MatKhau[0];
+                        }
+                    }
+                    showAlert(result.message || 'Tên đăng nhập hoặc mật khẩu không đúng', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+    </script>
+}

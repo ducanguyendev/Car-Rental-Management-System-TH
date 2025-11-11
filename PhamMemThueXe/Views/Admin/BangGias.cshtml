@@ -1,0 +1,502 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quản lý bảng giá";
+}
+
+<style>
+    .price-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+    }
+    .price-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    .price-amount {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #28a745;
+    }
+    .price-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    .date-badge {
+        font-size: 0.85rem;
+        padding: 0.4em 0.8em;
+    }
+    .currency {
+        color: #28a745;
+        font-weight: bold;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-dollar-sign"></i> Quản lý bảng giá</h2>
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createModal">
+        <i class="fas fa-plus"></i> Thêm bảng giá mới
+    </button>
+</div>
+
+<div id="alertContainer"></div>
+
+<!-- Filter Section -->
+<div class="filter-section mb-3">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label fw-bold">Lọc theo loại xe:</label>
+            <select class="form-select" id="filterLoaiXe">
+                <option value="">Tất cả loại xe</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                <i class="fas fa-redo"></i> Đặt lại bộ lọc
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Table View -->
+<div class="card shadow-sm">
+    <div class="card-header bg-warning">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Danh sách bảng giá</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="bangGiaTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Mã giá</th>
+                        <th>Loại xe</th>
+                        <th>Đơn giá theo ngày</th>
+                        <th>Ngày áp dụng</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="bangGiaTableBody">
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tạo mới -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Thêm bảng giá mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Loại xe <span class="text-danger">*</span></label>
+                        <select class="form-select" id="createMaLoaiXe" required>
+                            <option value="">-- Chọn loại xe --</option>
+                        </select>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Đơn giá theo ngày (VNĐ) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="createDonGia" required 
+                                   min="0" step="1000" placeholder="Nhập số tiền..." />
+                            <span class="input-group-text">VNĐ</span>
+                        </div>
+                        <small class="form-text text-muted">Ví dụ: 500000 cho 500,000 VNĐ/ngày</small>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ngày áp dụng <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="createNgayApDung" required 
+                               value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        <small class="form-text text-muted">Chọn ngày bắt đầu áp dụng giá mới</small>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Hủy
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Thêm bảng giá
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Sửa -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Chỉnh sửa bảng giá</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm">
+                <input type="hidden" id="editId" />
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Loại xe <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editMaLoaiXe" required>
+                            <option value="">-- Chọn loại xe --</option>
+                        </select>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Đơn giá theo ngày (VNĐ) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="editDonGia" required 
+                                   min="0" step="1000" />
+                            <span class="input-group-text">VNĐ</span>
+                        </div>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ngày áp dụng <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="editNgayApDung" required />
+                        <div class="invalid-feedback"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Hủy
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Cập nhật
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a asp-controller="Admin" asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+        let allBangGias = [];
+        let loaiXes = [];
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                const alert = document.querySelector('#alertContainer .alert');
+                if (alert) alert.remove();
+            }, 5000);
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('vi-VN').format(amount);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('vi-VN');
+        }
+
+        async function loadLoaiXes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/LoaiXeApi`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    loaiXes = result.data;
+                    const options = loaiXes.map(lx => 
+                        `<option value="${lx.maLoaiXe}">${lx.tenLoaiXe}</option>`
+                    ).join('');
+                    
+                    document.getElementById('createMaLoaiXe').innerHTML = 
+                        '<option value="">-- Chọn loại xe --</option>' + options;
+                    document.getElementById('editMaLoaiXe').innerHTML = 
+                        '<option value="">-- Chọn loại xe --</option>' + options;
+                    document.getElementById('filterLoaiXe').innerHTML = 
+                        '<option value="">Tất cả loại xe</option>' + options;
+                }
+            } catch (error) {
+                console.error('Error loading loai xe:', error);
+                showAlert('Không thể tải danh sách loại xe. Vui lòng thử lại.', 'warning');
+            }
+        }
+
+        async function loadBangGias() {
+            try {
+                const response = await fetch(`${API_BASE}/api/BangGiaApi`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        showAlert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'danger');
+                        return;
+                    }
+                    if (response.status === 403) {
+                        showAlert('Bạn không có quyền truy cập chức năng này.', 'danger');
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    console.error('Response is not JSON:', text);
+                    showAlert('Phản hồi từ server không đúng định dạng. Vui lòng thử lại.', 'danger');
+                    return;
+                }
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    allBangGias = result.data;
+                    filterAndDisplayBangGias();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                console.error('Error loading bang gia:', error);
+                showAlert(`Lỗi kết nối đến server: ${error.message}`, 'danger');
+            }
+        }
+
+        function filterAndDisplayBangGias() {
+            const filterLoaiXe = document.getElementById('filterLoaiXe').value;
+
+            let filteredBangGias = allBangGias;
+            
+            if (filterLoaiXe) {
+                filteredBangGias = filteredBangGias.filter(bg => bg.loaiXe && bg.loaiXe.maLoaiXe == filterLoaiXe);
+            }
+
+            // Sắp xếp theo ngày áp dụng giảm dần
+            filteredBangGias.sort((a, b) => new Date(b.ngayApDung) - new Date(a.ngayApDung));
+
+            const tbody = document.getElementById('bangGiaTableBody');
+            if (filteredBangGias.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                            <p class="mb-0">Chưa có bảng giá nào</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = filteredBangGias.map(item => `
+                    <tr>
+                        <td><strong>#${item.maBangGia}</strong></td>
+                        <td>
+                            ${item.loaiXe ? 
+                                `<span class="badge bg-info"><i class="fas fa-car-side"></i> ${item.loaiXe.tenLoaiXe || 'N/A'}</span>` :
+                                '<span class="badge bg-secondary">Chưa phân loại</span>'
+                            }
+                        </td>
+                        <td>
+                            <span class="price-amount">${formatCurrency(item.donGiaTheoNgay)}</span>
+                            <span class="currency"> VNĐ/ngày</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary date-badge">
+                                <i class="fas fa-calendar"></i> ${formatDate(item.ngayApDung)}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-warning me-1" onclick="editBangGia(${item.maBangGia})" title="Sửa">
+                                <i class="fas fa-edit"></i> Sửa
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBangGia(${item.maBangGia}, '${(item.loaiXe?.tenLoaiXe || '').replace(/'/g, "\\'")}')" title="Xóa">
+                                <i class="fas fa-trash"></i> Xóa
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('filterLoaiXe').value = '';
+            filterAndDisplayBangGias();
+        }
+
+        async function editBangGia(id) {
+            try {
+                const response = await fetch(`${API_BASE}/api/BangGiaApi/${id}`, {
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('editId').value = result.data.maBangGia;
+                    // Ưu tiên lấy từ maLoaiXe trực tiếp, nếu không có thì lấy từ loaiXe navigation
+                    const maLoaiXe = result.data.maLoaiXe || result.data.loaiXe?.maLoaiXe || '';
+                    document.getElementById('editMaLoaiXe').value = maLoaiXe;
+                    document.getElementById('editDonGia').value = result.data.donGiaTheoNgay || '';
+                    const ngayApDung = result.data.ngayApDung ? new Date(result.data.ngayApDung).toISOString().split('T')[0] : '';
+                    document.getElementById('editNgayApDung').value = ngayApDung;
+                    new bootstrap.Modal(document.getElementById('editModal')).show();
+                } else {
+                    showAlert(result.message || 'Không tìm thấy bảng giá', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function deleteBangGia(id, tenLoaiXe) {
+            const message = `Bạn có chắc muốn xóa bảng giá cho loại xe "${tenLoaiXe}"?`;
+            
+            if (!confirm(message)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/BangGiaApi/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message || 'Xóa bảng giá thành công!');
+                    loadBangGias();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi xóa', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const maLoaiXeValue = document.getElementById('createMaLoaiXe').value;
+            const maLoaiXe = parseInt(maLoaiXeValue);
+            const donGiaTheoNgay = parseFloat(document.getElementById('createDonGia').value);
+            const ngayApDung = document.getElementById('createNgayApDung').value;
+
+            if (!maLoaiXeValue || isNaN(maLoaiXe) || maLoaiXe <= 0 || !donGiaTheoNgay || donGiaTheoNgay <= 0 || !ngayApDung) {
+                showAlert('Vui lòng chọn loại xe và điền đầy đủ thông tin', 'danger');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/BangGiaApi`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        maBangGia: 0,
+                        maLoaiXe: maLoaiXe,
+                        donGiaTheoNgay: donGiaTheoNgay,
+                        ngayApDung: ngayApDung
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message || 'Thêm bảng giá thành công!');
+                    bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
+                    document.getElementById('createForm').reset();
+                    document.getElementById('createNgayApDung').value = '@DateTime.Today.ToString("yyyy-MM-dd")';
+                    loadBangGias();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = parseInt(document.getElementById('editId').value);
+            const maLoaiXeValue = document.getElementById('editMaLoaiXe').value;
+            const maLoaiXe = parseInt(maLoaiXeValue);
+            const donGiaTheoNgay = parseFloat(document.getElementById('editDonGia').value);
+            const ngayApDung = document.getElementById('editNgayApDung').value;
+
+            if (!maLoaiXeValue || isNaN(maLoaiXe) || maLoaiXe <= 0 || !donGiaTheoNgay || donGiaTheoNgay <= 0 || !ngayApDung) {
+                showAlert('Vui lòng chọn loại xe và điền đầy đủ thông tin', 'danger');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/BangGiaApi/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        maBangGia: id,
+                        maLoaiXe: maLoaiXe,
+                        donGiaTheoNgay: donGiaTheoNgay,
+                        ngayApDung: ngayApDung
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message || 'Cập nhật bảng giá thành công!');
+                    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                    document.getElementById('editForm').reset();
+                    loadBangGias();
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+
+        document.getElementById('filterLoaiXe').addEventListener('change', filterAndDisplayBangGias);
+
+        // Load data khi trang được tải
+        window.onload = async function() {
+            await loadLoaiXes();
+            await loadBangGias();
+        };
+    </script>
+}

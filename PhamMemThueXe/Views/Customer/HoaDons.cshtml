@@ -1,0 +1,95 @@
+@{ Layout = "_Layout"; ViewData["Title"] = "Hóa đơn của tôi"; }
+<div class="mb-4"><h2><i class="fas fa-receipt"></i> Hóa đơn của tôi</h2></div>
+<div id="alertContainer"></div>
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Mã</th>
+                    <th>Hợp đồng</th>
+                    <th>Ngày lập</th>
+                    <th>Số tiền</th>
+                    <th>Loại thanh toán</th>
+                </tr>
+            </thead>
+            <tbody id="hoaDonTableBody">
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<a asp-action="Index" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Quay lại</a>
+@section Scripts {
+<script>
+    const API_BASE = window.location.origin;
+    
+    async function getCurrentUser() {
+        const res = await fetch(`${API_BASE}/api/AuthApi/me`, { credentials: 'include' });
+        if (!res.ok) return null;
+        const r = await res.json();
+        return r.data || null;
+    }
+    
+    function formatDate(date) {
+        if (!date) return '';
+        return new Date(date).toLocaleDateString('vi-VN');
+    }
+    
+    function formatCurrency(amount) {
+        return Number(amount).toLocaleString('vi-VN');
+    }
+    
+    function showAlert(msg, type = 'danger') {
+        document.getElementById('alertContainer').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+    
+    async function loadHoaDons() {
+        const user = await getCurrentUser();
+        if (!user || !user.maKH) {
+            showAlert('Không xác định được thông tin khách hàng hoặc chưa đăng nhập!', 'danger');
+            document.getElementById('hoaDonTableBody').innerHTML = '';
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/api/HoaDonApi/by-customer/${user.maKH}`, { credentials: 'include' });
+            if (!res.ok) {
+                const errorResult = await res.json().catch(() => null);
+                throw new Error(errorResult?.message || 'Kết nối API thất bại');
+            }
+            const result = await res.json();
+            if (result.success) {
+                const data = result.data;
+                if (data.length === 0) {
+                    document.getElementById('hoaDonTableBody').innerHTML = '<tr><td colspan="5" class="text-center">Chưa có hóa đơn nào</td></tr>';
+                } else {
+                    document.getElementById('hoaDonTableBody').innerHTML = data.map(item => `
+                        <tr>
+                            <td>#${item.maHoaDon}</td>
+                            <td>#${item.hopDong?.maHopDong || 'N/A'}</td>
+                            <td>${formatDate(item.ngayLap)}</td>
+                            <td>${formatCurrency(item.soTienThanhToan)} VNĐ</td>
+                            <td>${item.loaiThanhToan || 'N/A'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } else {
+                showAlert(result.message || 'Lỗi tải danh sách hóa đơn!', 'danger');
+                document.getElementById('hoaDonTableBody').innerHTML = '';
+            }
+        } catch (e) {
+            console.error('Lỗi tải hóa đơn:', e);
+            showAlert('Không thể tải thông tin hóa đơn! ' + (e.message || ''), 'danger');
+            document.getElementById('hoaDonTableBody').innerHTML = '';
+        }
+    }
+    
+    loadHoaDons();
+</script>
+}

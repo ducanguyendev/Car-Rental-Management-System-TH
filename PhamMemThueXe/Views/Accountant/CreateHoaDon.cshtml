@@ -1,0 +1,186 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Tạo hóa đơn";
+}
+
+<div id="alertContainer"></div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h3>Tạo hóa đơn</h3>
+            </div>
+            <div class="card-body">
+                <div id="hopDongInfo" class="alert alert-info d-none">
+                    <strong id="hopDongNumber"></strong><br>
+                    Tổng tiền: <strong id="tongTien"></strong> VNĐ<br>
+                    Đã thanh toán: <strong id="totalPaid"></strong> VNĐ<br>
+                    Còn lại: <strong id="remaining"></strong> VNĐ
+                </div>
+                
+                <form id="hoaDonForm">
+                    <div class="mb-3">
+                        <label class="form-label">Hợp đồng *</label>
+                        <select class="form-select" id="maHopDong" required>
+                            <option value="">-- Đang tải... --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số tiền thanh toán (VNĐ) *</label>
+                        <input type="number" step="1000" class="form-control" id="soTienThanhToan" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loại thanh toán *</label>
+                        <select class="form-select" id="loaiThanhToan" required>
+                            <option value="Đặt cọc 50%">Đặt cọc 50%</option>
+                            <option value="Thanh toán 50% còn lại">Thanh toán 50% còn lại</option>
+                            <option value="Thanh toán toàn bộ">Thanh toán toàn bộ</option>
+                        </select>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                        <a asp-action="HoaDons" class="btn btn-secondary">Hủy</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+        let currentUser = null;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        async function getCurrentUser() {
+            try {
+                const res = await fetch(`${API_BASE}/api/AuthApi/me`, { credentials: 'include' });
+                if (!res.ok) return null;
+                const r = await res.json();
+                return r.data || null;
+            } catch (error) {
+                console.error('Error getting current user:', error);
+                return null;
+            }
+        }
+
+        async function loadHopDongs() {
+            try {
+                const res = await fetch(`${API_BASE}/api/HopDongApi`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải danh sách hợp đồng');
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('maHopDong');
+                    select.innerHTML = '<option value="">-- Chọn hợp đồng --</option>';
+                    result.data.forEach(hd => {
+                        const option = document.createElement('option');
+                        option.value = hd.maHopDong;
+                        option.textContent = `#${hd.maHopDong} - ${hd.khachHang?.hoTen || ''} - ${hd.tongTien.toLocaleString('vi-VN')} VNĐ`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showAlert('Lỗi tải danh sách hợp đồng', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function loadPaymentSummary(contractId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/HoaDonApi/payment-summary/${contractId}`, { credentials: 'include' });
+                if (!res.ok) return;
+                const result = await res.json();
+                if (result.success && result.data) {
+                    const info = result.data;
+                    document.getElementById('hopDongNumber').textContent = `Hợp đồng #${info.maHopDong}`;
+                    document.getElementById('tongTien').textContent = info.tongTien.toLocaleString('vi-VN');
+                    document.getElementById('totalPaid').textContent = info.totalPaid.toLocaleString('vi-VN');
+                    document.getElementById('remaining').textContent = info.remainingAmount.toLocaleString('vi-VN');
+                    document.getElementById('hopDongInfo').classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('Error loading payment summary:', error);
+            }
+        }
+
+        document.getElementById('maHopDong').addEventListener('change', function() {
+            const contractId = this.value;
+            if (contractId) {
+                loadPaymentSummary(parseInt(contractId));
+            } else {
+                document.getElementById('hopDongInfo').classList.add('d-none');
+            }
+        });
+
+        document.getElementById('hoaDonForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!currentUser || !currentUser.id) {
+                showAlert('Không xác định được thông tin nhân viên', 'danger');
+                return;
+            }
+
+            const requestData = {
+                maHopDong: parseInt(document.getElementById('maHopDong').value),
+                maNhanVien: currentUser.id,
+                soTienThanhToan: parseFloat(document.getElementById('soTienThanhToan').value),
+                loaiThanhToan: document.getElementById('loaiThanhToan').value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/HoaDonApi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Tạo hóa đơn thành công!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '@Url.Action("HoaDons", "Accountant")';
+                    }, 1500);
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi tạo hóa đơn', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+
+        // Load data when page loads
+        window.addEventListener('DOMContentLoaded', async function() {
+            currentUser = await getCurrentUser();
+            if (!currentUser) {
+                showAlert('Không xác định được thông tin người dùng. Vui lòng đăng nhập lại.', 'danger');
+                return;
+            }
+            await loadHopDongs();
+
+            // Check if hopDongId is in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const hopDongId = urlParams.get('hopDongId');
+            if (hopDongId) {
+                document.getElementById('maHopDong').value = hopDongId;
+                loadPaymentSummary(parseInt(hopDongId));
+            }
+        });
+    </script>
+}

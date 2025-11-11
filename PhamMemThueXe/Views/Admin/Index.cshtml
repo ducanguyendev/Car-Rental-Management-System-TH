@@ -1,0 +1,74 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quản lý hệ thống";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2><i class="fas fa-cog"></i> Quản lý hệ thống</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x mb-3"></i>
+                <h5>Quản lý tài khoản</h5>
+                <a asp-action="Accountants" class="btn btn-light btn-sm mt-2">
+                    <i class="fas fa-arrow-right"></i> Xem chi tiết
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-car-side fa-3x mb-3"></i>
+                <h5>Quản lý loại xe</h5>
+                <a asp-action="LoaiXes" class="btn btn-light btn-sm mt-2">
+                    <i class="fas fa-arrow-right"></i> Xem chi tiết
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-car fa-3x mb-3"></i>
+                <h5>Quản lý xe</h5>
+                <a asp-action="Xes" class="btn btn-light btn-sm mt-2">
+                    <i class="fas fa-arrow-right"></i> Xem chi tiết
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-dark h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-3x mb-3"></i>
+                <h5>Quản lý bảng giá</h5>
+                <a asp-action="BangGias" class="btn btn-dark btn-sm mt-2">
+                    <i class="fas fa-arrow-right"></i> Xem chi tiết
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card bg-dark text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                <h5>Báo cáo và thống kê</h5>
+                <a asp-action="Statistics" class="btn btn-light btn-lg mt-2">
+                    <i class="fas fa-arrow-right"></i> Xem thống kê
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,147 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Tạo phiếu đặt xe";
+}
+
+<div id="alertContainer"></div>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h3>Tạo phiếu đặt xe</h3>
+            </div>
+            <div class="card-body">
+                <form id="phieuDatXeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Khách hàng *</label>
+                        <select class="form-select" id="maKH" required>
+                            <option value="">-- Đang tải... --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loại xe *</label>
+                        <select class="form-select" id="maLoaiXe" required>
+                            <option value="">-- Đang tải... --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày dự kiến nhận *</label>
+                        <input type="date" class="form-control" id="ngayDuKienNhan" required />
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                        <a asp-action="PhieuDatXes" class="btn btn-secondary">Hủy</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alertContainer').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.querySelector('#alertContainer .alert')?.remove();
+            }, 5000);
+        }
+
+        async function loadKhachHangs() {
+            try {
+                const res = await fetch(`${API_BASE}/api/KhachHangApi`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải danh sách khách hàng');
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('maKH');
+                    select.innerHTML = '<option value="">-- Chọn khách hàng --</option>';
+                    result.data.forEach(kh => {
+                        const option = document.createElement('option');
+                        option.value = kh.maKH;
+                        option.textContent = `${kh.hoTen} - ${kh.soDienThoai || ''}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showAlert('Lỗi tải danh sách khách hàng', 'danger');
+                console.error(error);
+            }
+        }
+
+        async function loadLoaiXes() {
+            try {
+                const res = await fetch(`${API_BASE}/api/LoaiXeApi`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Lỗi tải danh sách loại xe');
+                const result = await res.json();
+                if (result.success) {
+                    const select = document.getElementById('maLoaiXe');
+                    select.innerHTML = '<option value="">-- Chọn loại xe --</option>';
+                    result.data.forEach(lx => {
+                        const option = document.createElement('option');
+                        option.value = lx.maLoaiXe;
+                        option.textContent = lx.tenLoaiXe;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                showAlert('Lỗi tải danh sách loại xe', 'danger');
+                console.error(error);
+            }
+        }
+
+        document.getElementById('phieuDatXeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const requestData = {
+                maKH: parseInt(document.getElementById('maKH').value),
+                maLoaiXe: parseInt(document.getElementById('maLoaiXe').value),
+                ngayDuKienNhan: document.getElementById('ngayDuKienNhan').value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/PhieuDatXeApi`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    showAlert(result.message || 'Tạo phiếu đặt xe thành công!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '@Url.Action("PhieuDatXes", "Accountant")';
+                    }, 1500);
+                } else {
+                    showAlert(result.message || 'Có lỗi xảy ra khi tạo phiếu đặt xe', 'danger');
+                }
+            } catch (error) {
+                showAlert('Lỗi kết nối đến server', 'danger');
+                console.error(error);
+            }
+        });
+
+        // Set min date to today
+        window.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const minDate = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('ngayDuKienNhan').setAttribute('min', minDate);
+
+            loadKhachHangs();
+            loadLoaiXes();
+        });
+    </script>
+}
